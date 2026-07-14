@@ -335,6 +335,7 @@ function perItemMath(itemDifficulty, abilityEstimate, inputData, stepDifficulty)
     // Item difficulty is per the item
     // Ability estimate initially 0 and then gets updated over time with the (rawScore - expectedScore)/updateDivisor
     // inputData is the score for this item
+    // step difficulty is the array of step difficulty for the test
     const logit = abilityEstimate - itemDifficulty
 
     let normalizer = 0
@@ -405,6 +406,7 @@ function iterate(dataInput, dataFormat, stepDifficulty, itemCount) {
     const minUpdateDivisor = 1
     const maxChange = 1.0
 
+    // Do this loop until the current estimate and previous estimate converge
     while (Math.abs(currentEstimate - previousEstimate) >= .01) { // Loop back to step 5) until the change in ability is too small (.01) to matter
         overshot = theEstimatesOvershoot(previousPreviousEstimate, previousEstimate, currentEstimate)
         previousPreviousEstimate = previousEstimate
@@ -441,6 +443,8 @@ function iterate(dataInput, dataFormat, stepDifficulty, itemCount) {
     return { currentEstimate, modelVariance, rawScore, outfitMeanSquare, infitMeanSquare }
 }
 
+// Iterate thru the scores and return expectedScore, modelVariance, rawScore, 
+// outfitMeanSquareNumerator, infitMeanSquareNumerator, infitMeanSquareDivisor
 function iterativeMath(dataInput, dataFormat, abilityEstimate, stepDifficulty) {
     let rawScore = 0 // for every item that is not a skip or no score, increase by 1
     let itemDifficulty; // from the itemdifficulty for the item
