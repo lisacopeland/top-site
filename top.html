@@ -15,24 +15,30 @@
   <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
     integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
     crossorigin="anonymous"></script>
-  <script src="https://www.testofplayfulness.com/top.js?hash=d5Mb1rta8Gto9034565Vr26i"></script>
+  <!-- <script src="https://www.testofplayfulness.com/top.js?hash=d5Mb1rta8Gto9034565Vr26i"></script> -->
   <link rel="icon" type="image/png" href="https://www.testofplayfulness.com/top.png">
+
 </head>
 
 <body>
   <div id="app" class="container">
     <div class="jumbotron">
-      <h1 class="display-4"><img src="greyTop.png" alt="Test of Playfulness logo" style="width:auto;">Test of Playfulness Calculator<img src="greyTop.png" alt="Test of Playfulness logo" style="width:auto;transform: scaleX(-1);"></h1>
-      <p class="lead">This generates an estimate of the test of playfulness using constants generated from previous iterations.</p>
+      <h1 class="display-4"><img src="greyTop.png" alt="Test of Playfulness logo" style="width:auto;">Test of
+        Playfulness Calculator<img src="greyTop.png" alt="Test of Playfulness logo"
+          style="width:auto;transform: scaleX(-1);"></h1>
+      <p class="lead">This generates an estimate of the test of playfulness using constants generated from previous
+        iterations.</p>
       <hr class="my-4">
       <!--<p>Please input general information about your subject. Be careful of HIPAA violations! Don't use PII.</p>-->
-      <p><b>Disclosure: I understand that the ToP data I am entering will be remain a part of the large ToP data base and, further, that my de-identified data may be used in future research involving the ToP.</b></p>
+      <p><b>Disclosure: I understand that the ToP data I am entering will be remain a part of the large ToP data base
+          and, further, that my de-identified data may be used in future research involving the ToP.</b></p>
       <div class="row">
         <div class="input-group input-group-sm col-sm mb-3">
           <div class="input-group-prepend">
             <span class="input-group-text" id="inputGroup-sizing-Name">Child's Name/ID</span>
           </div>
-          <input v-model="name" @input="routeUpdate" class="form-control" aria-label="Name input" aria-describedby="inputGroup-sizing-Name">
+          <input v-model="name" @input="routeUpdate" class="form-control" aria-label="Name input"
+            aria-describedby="inputGroup-sizing-Name">
         </div>
         <div class="input-group input-group-sm col-sm mb-3">
           <div class="input-group-prepend">
@@ -58,7 +64,8 @@
         </div>
         <div class="input-group input-group-sm col-sm mb-3">
           <div class="input-group-prepend">
-            <span class="input-group-text" id="inputGroup-sizing-ExaminerId">Examiner's ID (Leave blank if unknown)</span>
+            <span class="input-group-text" id="inputGroup-sizing-ExaminerId">Examiner's ID (Leave blank if
+              unknown)</span>
           </div>
           <input v-model="examinerId" @input="routeUpdate" class="form-control" aria-label="ExaminerId input"
             aria-describedby="inputGroup-sizing-ExaminerId">
@@ -102,7 +109,8 @@
     </div>
 
     <div class="input-group mb-3">
-      <button type="button" class="btn btn-success btn-lg col-sm-12" v-on:click="calculate" role="button">Submit Data...</button>
+      <button type="button" class="btn btn-success btn-lg col-sm-12" v-on:click="calculate" role="button">Submit
+        Data...</button>
     </div>
 
     <div class="alert alert-success" role="alert" v-if="outputSuccess">
@@ -144,24 +152,24 @@
       </tr>
       <tr v-for="(data,i) in dataFormat">
         <th scope="row"><b>{{data.displayName}}</b></th>
-        <td><select class="custom-select custom-select-sm" v-model="dataInput[i].data.extent" @change="routeUpdate" :disabled="!data.extent"
-            :id="i" :name="i">
+        <td><select class="custom-select custom-select-sm" v-model="dataInput[i].data.extent" @change="routeUpdate"
+            :disabled="!data.extent" :id="i" :name="i">
             <option selected default value="ns">NS</option>
             <option value="0">0</option>
             <option value="1">1</option>
             <option value="2">2</option>
             <option value="3">3</option>
           </select></td>
-        <td><select class="custom-select custom-select-sm" v-model="dataInput[i].data.intensity" @change="routeUpdate" :disabled="!data.intensity"
-            :id="i" :name="i">
+        <td><select class="custom-select custom-select-sm" v-model="dataInput[i].data.intensity" @change="routeUpdate"
+            :disabled="!data.intensity" :id="i" :name="i">
             <option selected default value="ns">NS</option>
             <option value="0">0</option>
             <option value="1">1</option>
             <option value="2">2</option>
             <option value="3">3</option>
           </select></td>
-        <td><select class="custom-select custom-select-sm" v-model="dataInput[i].data.skill" @change="routeUpdate" :disabled="!data.skill"
-            :id="i" :name="i">
+        <td><select class="custom-select custom-select-sm" v-model="dataInput[i].data.skill" @change="routeUpdate"
+            :disabled="!data.skill" :id="i" :name="i">
             <option selected default value="ns">NS</option>
             <option value="0">0</option>
             <option value="1">1</option>
@@ -172,7 +180,8 @@
     </table>
 
     <div class="input-group mb-3">
-      <button type="button" class="btn btn-success btn-lg col-sm-12" v-on:click="calculate" role="button">Submit Data...</button>
+      <button type="button" class="btn btn-success btn-lg col-sm-12" v-on:click="calculate" role="button">Submit
+        Data...</button>
     </div>
     <div class="alert alert-success" role="alert" v-if="outputSuccess">
       <table class="table">
@@ -205,4 +214,5 @@
       <strong>Error: </strong> {{errorText}}
     </div>
   </div>
+  <script src="./top.js?v=1"></script>
 </body>
