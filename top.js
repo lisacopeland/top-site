@@ -89,7 +89,8 @@ const main = async () => {
                 // console.log("Item Count is: " + this.itemCount)
                 // let itemDifficultyModifier = calculateItemDifficultyModifier(this.examinerId, this.config, this.examinerData)
                 // console.log(itemDifficultyModifier)
-                iterationOutput = iterate(this.dataInput, this.dataFormat, this.config.stepDifficulty, this.itemCount)
+                // dataInput for the scores, dataFormat for the itemDifficulty
+                iterationOutput = calculateMeasure(this.dataInput, this.dataFormat, this.config.stepDifficulty, this.itemCount)
 
                 this.expectedScore = iterationOutput.currentEstimate   // This is the measure used in the score calc in the next step
                 this.modelVariance = iterationOutput.modelVariance
@@ -167,7 +168,7 @@ const main = async () => {
                         // console.log({name, examinerId, csvDataInput})
                         // let itemDifficultyModifier = calculateItemDifficultyModifier(examinerId, self.config, self.examinerData)
                         let itemCount = countItems(csvDataInput)
-                        let iterationOutput = iterate(csvDataInput, self.dataFormat, self.config.stepDifficulty, itemCount)
+                        let iterationOutput = calculateMeasure(csvDataInput, self.dataFormat, self.config.stepDifficulty, itemCount)
                         let itemLink = '"' + baseUrlProtocol + '/top.html#' + dataLine + '"'
                         let outputLine = makeDataLine(dataInput, name, examinerId) + ',' +
                             iterationOutput.rawScore + ',' +
@@ -338,27 +339,23 @@ function perItemMath(itemDifficulty, abilityEstimate, inputData, stepDifficulty)
     // step difficulty is the array of step difficulty for the test
     const logit = abilityEstimate - itemDifficulty
 
-    let normalizer = 0
-    let expectation = 0
-    let sumSquare = 0
-    let currentLogit = 0
-    let residual = 0
-    let variance = 0
-    let standardizedResidual = 0
+    let normalizer = 0   // cumulative
+    let expectation = 0 // cumulative
+    let sumSquare = 0   // cumulative
+    let currentLogit = 0 // cumulative
     let remark = ""
 
     for (let i = 1; i < stepDifficulty.length; i++) {
-        const currentStepDifficulty = stepDifficulty[i];
-        currentLogit = currentLogit + logit - currentStepDifficulty
-        let value = Math.exp(currentLogit)
+        currentLogit = currentLogit + logit - stepDifficulty[i];
+        const value = Math.exp(currentLogit)
         normalizer = normalizer + value
         expectation = expectation + i * value
         sumSquare = sumSquare + i * i * value
     }
     expectation = expectation / normalizer
-    variance = (sumSquare / normalizer) - (expectation * expectation)
-    residual = inputData - expectation
-    standardizedResidual = residual / Math.sqrt(variance)
+    const variance = (sumSquare / normalizer) - (expectation * expectation)
+    const residual = inputData - expectation
+    const standardizedResidual = residual / Math.sqrt(variance)
     if (standardizedResidual > 2) {
         remark = "Unexpectedly high rating"
     }
@@ -373,6 +370,7 @@ function perItemMath(itemDifficulty, abilityEstimate, inputData, stepDifficulty)
     return { expectation, variance, itemOutfitMeanSquareNumerator, itemInfitMeanSquareNumerator, itemInfitMeanSquareDivisor, remark }
 }
 
+// not used 
 function calculateItemDifficultyModifier(examinerId, config, examinerData) {
     let modifier = 0
     if ((typeof examinerId !== 'undefined') && (examinerData[examinerId])) {
@@ -385,67 +383,140 @@ function calculateItemDifficultyModifier(examinerId, config, examinerData) {
 }
 
 // TODO: Add success flag and error message
-function iterate(dataInput, dataFormat, stepDifficulty, itemCount) {
-    // let previousEstimate = config.initialAbilityEstimate
-    // let previousPreviousEstimate = config.initialAbilityEstimate
-    let previousEstimate = 0;
-    let previousPreviousEstimate = 0;
-
-    let outputMath = iterativeMath(dataInput, dataFormat, 0, stepDifficulty)
-    let modelVariance = outputMath.modelVariance;
-    let expectedScore = outputMath.expectedScore
-    let updateDivisor = outputMath.modelVariance
-    let rawScore = outputMath.rawScore
-    let outfitMeanSquareNumerator = outputMath.outfitMeanSquareNumerator
-    let infitMeanSquareNumerator = outputMath.infitMeanSquareNumerator
-    let infitMeanSquareDivisor = outputMath.infitMeanSquareDivisor
-    let currentEstimate = previousEstimate + (rawScore - expectedScore) / updateDivisor
-    let overshot;
-    const maxIterations = 1000
-    let iterationCount = 0
+function calculateMeasure(
+    dataInput,
+    dataFormat,
+    stepDifficulty,
+    itemCount
+) {
+    const initialEstimate = 0
+    const convergenceTolerance = 0.01
+    const maxIterations = 100
     const minUpdateDivisor = 1
     const maxChange = 1.0
 
-    // Do this loop until the current estimate and previous estimate converge
-    while (Math.abs(currentEstimate - previousEstimate) >= .01) { // Loop back to step 5) until the change in ability is too small (.01) to matter
-        overshot = theEstimatesOvershoot(previousPreviousEstimate, previousEstimate, currentEstimate)
-        previousPreviousEstimate = previousEstimate
-        previousEstimate = currentEstimate
-        if (overshot) {
-            Math.max(updateDivisor * 2, minUpdateDivisor)
+    let previousPreviousEstimate = initialEstimate
+    let previousEstimate = initialEstimate
+    let currentEstimate = initialEstimate
+
+    let outputMath
+    let updateDivisor
+    let iterationCount = 0
+    let converged = false
+
+    do {
+        outputMath = calculateExpectedScore(
+            dataInput,
+            dataFormat,
+            currentEstimate,
+            stepDifficulty
+        )
+
+        const modelVariance = outputMath.modelVariance
+        const expectedScore = outputMath.expectedScore
+        const rawScore = outputMath.rawScore
+
+        if (!Number.isFinite(modelVariance) || modelVariance <= 0) {
+            throw new Error(
+                `Invalid model variance: ${modelVariance}`
+            )
+        }
+
+        if (
+            updateDivisor === undefined ||
+            !hasOverShotEstimate(
+                previousPreviousEstimate,
+                previousEstimate,
+                currentEstimate
+            )
+        ) {
+            updateDivisor = modelVariance
         }
         else {
-            updateDivisor = outputMath.modelVariance
+            updateDivisor = Math.max(
+                updateDivisor * 2,
+                minUpdateDivisor
+            )
         }
-        outputMath = iterativeMath(dataInput, dataFormat, previousEstimate, stepDifficulty)
-        modelVariance = outputMath.modelVariance;
-        expectedScore = outputMath.expectedScore
-        rawScore = outputMath.rawScore
-        
-        outfitMeanSquareNumerator = outputMath.outfitMeanSquareNumerator
-        infitMeanSquareNumerator = outputMath.infitMeanSquareNumerator
-        infitMeanSquareDivisor = outputMath.infitMeanSquareDivisor
-        let change = (rawScore - expectedScore) / updateDivisor
 
-        change = Math.max(-maxChange, Math.min(maxChange, change))
+        let change =
+            (rawScore - expectedScore) / updateDivisor
+
+        change = Math.max(
+            -maxChange,
+            Math.min(maxChange, change)
+        )
+
+        previousPreviousEstimate = previousEstimate
+        previousEstimate = currentEstimate
         currentEstimate = previousEstimate + change
 
         iterationCount++
-        if (iterationCount > maxIterations) { 
-            console.error('failure to converge!!!');
-            break 
+
+        if (!Number.isFinite(currentEstimate)) {
+        console.error(
+            `Ability estimate became non-finite`
+        )
+        throw new Error(
+            "Ability estimate became non-finite"
+        )
         }
+
+        converged =
+            Math.abs(currentEstimate - previousEstimate) <
+            convergenceTolerance
+
+    } while (!converged && iterationCount < maxIterations)
+
+    if (!converged) {
+        console.error(
+            `Measure failed to converge after ${iterationCount} iterations`
+        )
     }
-    console.log('hi from after the while loop - iterationCount is ', iterationCount);
-    let outfitMeanSquare = outfitMeanSquareNumerator / itemCount
-    let infitMeanSquare = infitMeanSquareNumerator / infitMeanSquareDivisor
-    outfitMeanSquare = outfitMeanSquare > 9.9 ? 9.9 : outfitMeanSquare
-    return { currentEstimate, modelVariance, rawScore, outfitMeanSquare, infitMeanSquare }
+
+    if (iterationCount === maxIterations) {
+        console.error(
+            `Max iterations reached without convergence`
+        )
+    }
+    /*
+     * Recalculate once at the final estimate so modelVariance,
+     * residuals, infit, and outfit all correspond to the returned
+     * currentEstimate.
+     */
+    outputMath = calculateExpectedScore(
+        dataInput,
+        dataFormat,
+        currentEstimate,
+        stepDifficulty
+    )
+
+    const modelVariance = outputMath.modelVariance
+    const rawScore = outputMath.rawScore
+
+    let outfitMeanSquare =
+        outputMath.outfitMeanSquareNumerator / itemCount
+
+    const infitMeanSquare =
+        outputMath.infitMeanSquareNumerator /
+        outputMath.infitMeanSquareDivisor
+
+    outfitMeanSquare = Math.min(outfitMeanSquare, 9.9)
+
+    return {
+        currentEstimate,
+        modelVariance,
+        rawScore,
+        outfitMeanSquare,
+        infitMeanSquare,
+        iterationCount,
+        converged
+    }
 }
 
 // Iterate thru the scores and return expectedScore, modelVariance, rawScore, 
 // outfitMeanSquareNumerator, infitMeanSquareNumerator, infitMeanSquareDivisor
-function iterativeMath(dataInput, dataFormat, abilityEstimate, stepDifficulty) {
+function calculateExpectedScore(dataInput, dataFormat, abilityEstimate, stepDifficulty) {
     let rawScore = 0 // for every item that is not a skip or no score, increase by 1
     let itemDifficulty; // from the itemdifficulty for the item
     let perItemResults; // object from per item math
@@ -495,7 +566,8 @@ function iterativeMath(dataInput, dataFormat, abilityEstimate, stepDifficulty) {
     return { expectedScore, modelVariance, rawScore, outfitMeanSquareNumerator, infitMeanSquareNumerator, infitMeanSquareDivisor }
 }
 
-function theEstimatesOvershoot(prevprev, prev, curr) {
+// Decide if the current estimate is wildly different from the previous one
+function hasOverShotEstimate(prevprev, prev, curr) {
     return (
         (prevprev < prev && curr < prev) ||
         (prevprev > prev && curr > prev)
